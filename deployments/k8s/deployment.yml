@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: pandemic-api-ussd
-        image: gidyon/pandemic-api-ussd:v0.13
+        image: gidyon/pandemic-api-ussd:latest
         args: ["--config-file", "/app/configs/config.yml"]
         imagePullPolicy: Always
         ports:
