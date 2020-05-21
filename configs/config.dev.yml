@@ -1,0 +1,40 @@
+serviceVersion: v1/beta
+serviceName: ussd_app
+servicePort: 9090
+logging:
+  level: -1
+  timeFormat: 2006-01-02T15:04:05Z07:00
+security:
+  tlsCert: /home/gideon/go/src/github.com/gidyon/pandemic-api/certs/localhost/cert.pem
+  tlsKey: /home/gideon/go/src/github.com/gidyon/pandemic-api/certs/localhost/key.pem
+  serverName: localhost
+databases:
+  sqlDatabase:
+    required: true
+    address: localhost:3306
+    host: localhost
+    port: 3306
+    user: root
+    schema: fightcovid19
+    password: hakty11
+    metadata:
+      name: mysql
+      dialect: mysql
+      orm: gorm
+  redisDatabase:
+    required: true
+    address: localhost:6379
+    host: localhost
+    port: 6379
+    metadata:
+      name: redis
+      useRediSearch: true
+externalServices:
+- name: messaging
+  type: messaging
+  required: true
+  address: localhost:5600
+  host: localhost
+  port: 5600
+  tlsCert: /home/gideon/go/src/github.com/gidyon/pandemic-api/certs/localhost/cert.pem
+  serverName: localhost
