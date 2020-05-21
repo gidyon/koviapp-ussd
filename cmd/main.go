@@ -29,9 +29,10 @@ func main() {
 	handleError(err)
 
 	ussdAPI := &ussdAPIServer{
-		cache:  service.RedisClient(),
-		sqlDB:  service.GormDB(),
-		logger: service.Logger(),
+		cache:            service.RedisClient(),
+		sqlDB:            service.GormDB(),
+		logger:           service.Logger(),
+		ministryHotlines: []string{"0732353535", "0729471414"},
 	}
 
 	service.AddEndpoint("/callbacks/ussd/screening", ussdAPI)
@@ -64,12 +65,14 @@ type ussdPayload struct {
 }
 
 type ussdAPIServer struct {
-	cache  *redis.Client
-	sqlDB  *gorm.DB
-	logger grpclog.LoggerV2
+	cache            *redis.Client
+	sqlDB            *gorm.DB
+	logger           grpclog.LoggerV2
+	ministryHotlines []string
 }
 
 func (api *ussdAPIServer) httpError(w http.ResponseWriter, userID, errMsg string, statusCode int) {
+	api.logger.Errorf("error happened: %s", errMsg)
 	api.deleteUserSession(userID)
 	http.Error(w, "END "+errMsg, statusCode)
 }
@@ -107,7 +110,7 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response = "CON Welcome to KoviApp. Select language \n"
+		response = "CON Welcome to KoviTrace. Select language \n"
 		response += "1. English \n"
 		response += "2. Kiswahili"
 
@@ -136,11 +139,6 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		response += "CON Andika jina la kaunti"
 
 	case strings.HasPrefix(ussd.Text, "1*2*") || strings.HasPrefix(ussd.Text, "2*2*"):
-		if strings.HasPrefix(ussd.Text, "1*2*") {
-			response = "Nambari za kupiga \n"
-		} else {
-			response = "Numbers to call \n"
-		}
 		hotlines, err := api.getHotlines(ussd.Text)
 		if err != nil {
 			api.httpError(w, ussd.SessionID, "failed to get hotlines", http.StatusInternalServerError)
@@ -150,23 +148,35 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			hotlines = hotlines[:5]
 		}
 
+		response += "END County hotlines \n"
+
 		for index, hotline := range hotlines {
-			response += fmt.Sprintf("%d %s \n", index, hotline)
+			response += fmt.Sprintf("%d. %s \n", index+1, hotline)
 		}
 
-		response = "END Thank you. Keep safe"
+		response += "\nMinistry hotlines \n"
 
-	case strings.HasPrefix(ussd.Text, "1*1"):
-		response = "CON Welcome to KoviApp Self screenig. Provide honest response \n"
-		response += "How old are you \n"
+		for index, hotline := range api.ministryHotlines {
+			response += fmt.Sprintf("%d. %s \n", index+1, hotline)
+		}
+
+		if strings.HasPrefix(ussd.Text, "2*2*") {
+			response += "\nEndelea kutumia KoviTrace. Jizuie"
+		} else {
+			response += "\nKeep using KoviTrace. Keep safe"
+		}
+
+	case strings.HasPrefix(ussd.Text, "1*1") && strings.Count(ussd.Text, "*") == 1:
+		response = "CON Welcome to KoviTrace Self screenig. Provide honest response. \n"
+		response += "How old are you? \n"
 		response += "1. 0 - 15 years \n"
 		response += "2. 15 - 25 years \n"
 		response += "3. 25 - 40 years \n"
 		response += "4. 40 - 60 years \n"
 		response += "5. Above 60 years \n"
-	case strings.HasPrefix(ussd.Text, "2*1"):
-		response = "CON Karibu kwenye KoviApp uchunguzi wa kibinafsi. Toa mwitikio wa kweli \n"
-		response += "Una miaka mingapi \n"
+	case strings.HasPrefix(ussd.Text, "2*1") && strings.Count(ussd.Text, "*") == 1:
+		response = "CON Karibu kwenye KoviTrace uchunguzi wa kibinafsi. Toa mwitikio wa kweli \n"
+		response += "Una miaka mingapi? \n"
 		response += "1. Miaka 0 - 15 \n"
 		response += "2. Miaka 15 - 25 \n"
 		response += "3. Miaka 25 - 40 \n"
@@ -271,7 +281,8 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				if err != nil {
-					api.httpError(w, ussd.SessionID, "failed to save how contact happened", http.StatusInternalServerError)
+					api.logger.Errorln(err)
+					api.httpError(w, ussd.SessionID, "failed to save data", http.StatusInternalServerError)
 					return
 				}
 			}

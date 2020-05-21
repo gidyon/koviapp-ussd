@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 )
 
@@ -26,11 +27,11 @@ func (api *ussdAPIServer) responseForSelectService(ussd *ussdPayload) (string, e
 	var response string
 	switch lang {
 	case eng:
-		response += "CON Select service you want to access \n"
-		response += "1. Self-Screening"
-		response += "2. Local hotlines"
+		response += "CON Select service you want to access\n"
+		response += "1. Self-Screening\n"
+		response += "2. Local hotlines\n"
 	default:
-		response += "CON Changua huduma unataka kupata \n"
+		response += "CON Changua huduma unataka kupata\n"
 		response += "1. Kujichunguza"
 		response += "2. Nambari ya eneo"
 	}
@@ -73,18 +74,18 @@ func (api *ussdAPIServer) responseForCases(userID string) (string, error) {
 		return "", errors.Wrap(err, "failed to get user language")
 	}
 
-	var response string
+	var response = "CON "
 
 	switch lang {
 	case eng:
-		response = "CON Have there been any case of COVID-19 in your area? \n"
-		response += "1. More than 100 cases"
-		response += "2. Less than 100"
+		response += "Have there been any case of COVID-19 in your area?\n"
+		response += "1. More than 100 cases\n"
+		response += "2. Less than 100\n"
 		response += "3. Not known"
 	default:
-		response = "CON Kumekuwa na kesi yoyote ya COVID-19 katika eneo lako? \n"
-		response += "1. Zaidi ya kesi 100"
-		response += "2. Chini ya kesi 100"
+		response += "Kumekuwa na kesi yoyote ya COVID-19 katika eneo lako?\n"
+		response += "1. Zaidi ya kesi 100\n"
+		response += "2. Chini ya kesi 100\n"
 		response += "3. Haijulikani"
 	}
 
@@ -114,14 +115,14 @@ func (api *ussdAPIServer) responseForContact(userID string) (string, error) {
 
 	switch lang {
 	case eng:
-		response = "CON Have you been in contact with a suspected or confiimed COVID-19 case? \n"
-		response += "1. Yes"
-		response += "2. No"
+		response = "CON Have you been in contact with a suspected or confiimed COVID-19 case?\n"
+		response += "1. Yes\n"
+		response += "2. No\n"
 		response += "3. Not Sure"
 	default:
-		response = "CON Je! Ushawai karibiana na mgonjwa anayeshukiwa and aliyethibitika kuwa na COVID-19? \n"
-		response += "1. Ndio"
-		response += "2. Hapana"
+		response = "CON Je! Ushawai karibiana na mgonjwa anayeshukiwa au aliyethibitika kuwa na COVID-19?\n"
+		response += "1. Ndio\n"
+		response += "2. Hapana\n"
 		response += "3. Sina hakika"
 	}
 
@@ -152,25 +153,23 @@ func (api *ussdAPIServer) responseForHowContactHappened(userID string) (string, 
 
 	switch lang {
 	case eng:
-		response = "CON Have did the contact happened? \n"
-		response += "1. Working together \n"
-		response += "2. Face to face contact within 1 meter \n"
-		response += "3. Travelling together \n"
-		response += "4. Living in same environment \n"
-		response += "5. Healthcare associated exposure \n"
-		response += "6. Others \n"
-		response += "7. None \n"
-		response += "Use comma to separate answers if multiple applies"
+		response = "CON Have did the contact happened?\n"
+		response += "1. Working together\n"
+		response += "2. Face to face contact\n"
+		response += "3. Travelling together\n"
+		response += "4. Living in same environment\n"
+		response += "5. Healthcare associated exposure\n"
+		response += "6. None\n"
+		response += "Use commas for multiple answers"
 	default:
-		response = "CON Je! Mawasiliano yalikuwaje?? \n"
-		response += "1. Kufanya kazi pamoja \n"
-		response += "2. Uso wa uso kwa uso ndani ya mita 1 \n"
-		response += "3. Kusafiri pamoja \n"
-		response += "4. Kuishi katika mazingira sawa \n"
-		response += "5. Kupeana huduma ya afya au matibabu \n"
-		response += "6. Njia nyingine \n"
-		response += "7. Hakuna \n"
-		response += "Tumia comma kutenganisha majibu ikiwa nyingi zipo"
+		response = "CON Je! Mapatano yalikuwaje?\n"
+		response += "1. Kufanya kazi pamoja\n"
+		response += "2. Uso wa uso\n"
+		response += "3. Kusafiri pamoja\n"
+		response += "4. Kuishi katika mazingira sawa\n"
+		response += "5. Kupeana matibabu\n"
+		response += "6. Hakuna\n"
+		response += "Tumia comma kutenganisha majibu"
 	}
 
 	return response, nil
@@ -178,8 +177,8 @@ func (api *ussdAPIServer) responseForHowContactHappened(userID string) (string, 
 
 func (api *ussdAPIServer) saveHowContactHappenedSelection(userID, answer string, score int) error {
 	values, err := api.cache.HGet(userID, "contacts").Result()
-	if err != nil {
-		return errors.Wrap(err, "failed to save contact profile")
+	if err != nil && err != redis.Nil {
+		return errors.Wrap(err, "failed to get contact profile")
 	}
 
 	err = api.cache.HIncrBy(userID, "risk", int64(score)).Err()
@@ -206,16 +205,14 @@ func (api *ussdAPIServer) responseForSymptoms(userID string) (string, error) {
 		response += "2. Cough \n"
 		response += "3. Tiredness/Fatigue \n"
 		response += "4. Fever \n"
-		response += "5. None of the above \n"
-		response += "Use comma to separate answers if multiple applies"
+		response += "5. None of the above"
 	default:
 		response = "CON Je! Una dalili zifuatazo? \n"
 		response += "1. Ugumu wa kupumua \n"
 		response += "2. Kikohozi \n"
 		response += "3. Uchovu \n"
 		response += "4. Homa \n"
-		response += "5. Hakuna ya hayo hapo juu \n"
-		response += "Tumia comma kutenganisha majibu ikiwa nyingi zipo"
+		response += "5. Hakuna"
 	}
 
 	return response, nil
@@ -223,7 +220,7 @@ func (api *ussdAPIServer) responseForSymptoms(userID string) (string, error) {
 
 func (api *ussdAPIServer) saveSymptomsSelection(userID, answer string, score int) error {
 	values, err := api.cache.HGet(userID, "symptoms").Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return errors.Wrap(err, "failed to save contact profile")
 	}
 
@@ -246,25 +243,23 @@ func (api *ussdAPIServer) responseForIllness(userID string) (string, error) {
 
 	switch lang {
 	case eng:
-		response = "CON Do you have any of the following? \n"
-		response += "1. Diabetes \n"
-		response += "2. Asthmatic \n"
-		response += "3. Cancer \n"
-		response += "4. Hyper Tension \n"
-		response += "5. Tuberclosis \n"
-		response += "6. Respiratory illness \n"
-		response += "7. None of the above \n"
-		response += "Use comma to separate answers if multiple applies"
+		response = "CON Do you have any of the following?\n"
+		response += "1. Diabetes\n"
+		response += "2. Asthmatic\n"
+		response += "3. Cancer\n"
+		response += "4. Hyper Tension\n"
+		response += "5. Tuberclosis\n"
+		response += "6. Respiratory illness\n"
+		response += "7. None of the above"
 	default:
-		response = "CON Je! Unayo yoyote ya yafuatayo \n"
-		response += "1. Ugonjwa wa sukari \n"
-		response += "2. Pumu \n"
-		response += "3. Saratani \n"
-		response += "4. Shinikizo la damu \n"
-		response += "5. Kifua kikuu \n"
-		response += "6. Ugonjwa wa kupumua \n"
-		response += "7. Hakuna yaliyo hapo juu \n"
-		response += "Tumia comma kutenganisha majibu ikiwa nyingi zipo"
+		response = "CON Je! Unaugua yoyote yafuatayo?\n"
+		response += "1. Ugonjwa wa sukari\n"
+		response += "2. Pumu\n"
+		response += "3. Saratani\n"
+		response += "4. Shinikizo la damu\n"
+		response += "5. Kifua kikuu\n"
+		response += "6. Ugonjwa wa kupumua\n"
+		response += "7. Hakuna yaliyo hapo juu"
 	}
 
 	return response, nil
@@ -272,7 +267,7 @@ func (api *ussdAPIServer) responseForIllness(userID string) (string, error) {
 
 func (api *ussdAPIServer) saveIllnessSelection(userID, answer string, score int) error {
 	values, err := api.cache.HGet(userID, "illness").Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return errors.Wrap(err, "failed to save illness profile")
 	}
 

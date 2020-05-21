@@ -36,7 +36,7 @@ func (api *ussdAPIServer) riskAnalysis(userID string) (string, error) {
 		}
 	}
 
-	recommendations, err := api.getUserRecommendations(userID)
+	recommendations, err := api.getUserRecommendations(userID, lang)
 	if err != nil {
 		return "", err
 	}
@@ -44,23 +44,23 @@ func (api *ussdAPIServer) riskAnalysis(userID string) (string, error) {
 		recommendations = recommendations[:3]
 	}
 
-	var response string
+	response := "END "
 
 	switch lang {
 	case eng:
-		response = fmt.Sprintf("You have %s risk of getting COVID-19.\nObserve the following recommendations to reduce your risk", riskIndex)
+		response += fmt.Sprintf("You have %s risk of getting COVID-19.\nObserve the following recommendations to reduce your risk\n", riskIndex)
 		for index, recommendation := range recommendations {
-			response += fmt.Sprintf("%d %s\n", index, recommendation)
+			response += fmt.Sprintf("%d. %s\n", index+1, recommendation)
 		}
-		response += "Take the questionnaire on a daily basis in order to stay updated 	\n"
-		response += "See you next time"
+		response += "\nTake the questionnaire on a daily basis in order to stay updated\n"
+		response += "See you next time :)"
 	default:
-		response = fmt.Sprintf("Una hatari ya %s kupata COVID-19.\nZingatia maagizo uliyopewa ili kupunguza hatari yako", riskIndex)
+		response += fmt.Sprintf("Una hatari ya %s kupata COVID-19.\nZingatia maagizo uliyopewa ili kupunguza hatari yako\n", riskIndex)
 		for index, recommendation := range recommendations {
-			response += fmt.Sprintf("%d %s\n", index, recommendation)
+			response += fmt.Sprintf("%d. %s\n", index+1, recommendation)
 		}
-		response += "Fanya jaribi hili kila siku ndiposa ujikinge zaidi \n"
-		response += "Tutaonana wakati mwingine"
+		response += "\nFanya jaribi hili kila siku ndiposa ujikinge zaidi.\n"
+		response += "Tutaonana wakati mwingine :)"
 	}
 
 	return response, nil
@@ -75,6 +75,11 @@ func (api *ussdAPIServer) getRisk(userID string) (int, error) {
 	return strconv.Atoi(riskStr)
 }
 
-func (api *ussdAPIServer) getUserRecommendations(userID string) ([]string, error) {
-	return []string{"Wear mask", "Avoid congested places", "Keep social distance of 1.5 m"}, nil
+func (api *ussdAPIServer) getUserRecommendations(userID, lang string) ([]string, error) {
+	switch lang {
+	case eng:
+		return []string{"Wear mask", "Avoid congested places", "Keep social distance of 1.5 m"}, nil
+	default:
+		return []string{"Vaa Maski", "Epuka maeneo yenye watu wengi", "Zingatia umbali wa kijami wa 1.5 mita"}, nil
+	}
 }
