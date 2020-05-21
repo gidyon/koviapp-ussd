@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -76,15 +75,28 @@ func (api *ussdAPIServer) httpError(w http.ResponseWriter, userID, errMsg string
 }
 
 func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Get request
-	ussd := &ussdPayload{}
-	err := json.NewDecoder(r.Body).Decode(ussd)
-	if err != nil {
-		http.Error(w, "failed to decode request body", http.StatusInternalServerError)
+	if r.Method != http.MethodPost {
+		http.Error(w, "only POST method allowed", http.StatusInternalServerError)
 		return
 	}
 
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to parse form: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	ussd := &ussdPayload{
+		SessionID:   r.FormValue("sessionId"),
+		PhoneNumber: r.FormValue("phoneNumber"),
+		NetworkCode: r.FormValue("networkCode"),
+		ServiceCode: r.FormValue("serviceCode"),
+		Text:        r.FormValue("text"),
+	}
+
 	var response string
+
+	api.logger.Infof("request text: %s", ussd.Text)
 
 	switch {
 	case ussd.Text == "":
@@ -105,8 +117,8 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			api.httpError(w, ussd.SessionID, "failed to set user language", http.StatusInternalServerError)
 			return
 		}
-		response += "CON Select service you want to access \n"
-		response += "1. Self-Screening for COVID-19"
+		response += "CON Select service you want to access. \n"
+		response += "1. Self-Screening for COVID-19 \n"
 		response += "2. View local hotlines"
 	case ussd.Text == "2":
 		err = api.setUserLanguage(ussd, swa)
@@ -114,14 +126,14 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			api.httpError(w, ussd.SessionID, "failed to set user language", http.StatusInternalServerError)
 			return
 		}
-		response += "CON Changua huduma unachotaka kupata \n"
-		response += "1. Kujichunguza dhidi ya COVID-19"
+		response += "CON Changua huduma unachotaka kupata. \n"
+		response += "1. Kujichunguza dhidi ya COVID-19 \n"
 		response += "2. Tazama nambari za eneo"
 
 	case ussd.Text == "1*2":
-		response += "CON Type county name \n"
+		response += "CON Type county name"
 	case ussd.Text == "2*2":
-		response += "CON Andika jina la kaunti \n"
+		response += "CON Andika jina la kaunti"
 
 	case strings.HasPrefix(ussd.Text, "1*2*") || strings.HasPrefix(ussd.Text, "2*2*"):
 		if strings.HasPrefix(ussd.Text, "1*2*") {
@@ -355,6 +367,9 @@ func (api *ussdAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		api.httpError(w, ussd.SessionID, "failed to get hotlines", http.StatusInternalServerError)
 		return
 	}
+
+	// Send response
+	w.Write([]byte(response))
 }
 
 func (api *ussdAPIServer) getHotlines(county string) ([]string, error) {

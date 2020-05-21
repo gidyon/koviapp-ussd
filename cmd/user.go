@@ -10,7 +10,7 @@ const (
 )
 
 func (api *ussdAPIServer) saveUser(ussd *ussdPayload) error {
-	return api.cache.HSet(ussd.SessionID, "phone", ussd.PhoneNumber, "sessionId", ussd.PhoneNumber).Err()
+	return api.cache.HMSet(ussd.SessionID, "phone", ussd.PhoneNumber, "sessionId", ussd.PhoneNumber).Err()
 }
 
 func (api *ussdAPIServer) deleteUserSession(userID string) error {
