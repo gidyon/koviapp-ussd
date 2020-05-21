@@ -1,9 +1,18 @@
 PROJECT_NAME := pandemic-api
-PKG := gituhub.com/gidyon/koviapp-ussd
+PKG := github.com/gidyon/koviapp-ussd
+
+setup_dev: ## start development databases
+	cd deployments/compose && docker-compose up -d
+
+teardown_dev: ## stop development databases
+	cd deployments/compose && docker-compose down
 
 compile:
 	go build -i -v -o ussd $(PKG)/cmd
 
+run:
+	./ussd -config-file=configs/config.dev.yml
+	
 docker_build:
 ifdef tag
 	@docker build -t gidyon/$(PROJECT_NAME)-ussd:$(tag) .
