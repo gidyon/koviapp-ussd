@@ -1,0 +1,32 @@
+serviceVersion: v1/beta
+serviceName: ussd_app
+servicePort: 443
+logging:
+  level: -1
+  timeFormat: 2006-01-02T15:04:05Z07:00
+security:
+  tlsCert: /app/secrets/keys/cert
+  tlsKey: /app/secrets/keys/key
+  serverName: gateway
+  insecure: true
+databases:
+  sqlDatabase:
+    required: true
+    address: mysqldb:80
+    host: mysqldb
+    port: 80
+    userFile: /app/secrets/mysql/username
+    passwordFile: /app/secrets/mysql/password
+    schemaFile: /app/secrets/mysql/schema
+    metadata:
+      name: mysql
+      dialect: mysql
+      orm: gorm
+  redisDatabase:
+    required: true
+    address: redisdb:443
+    host: redisdb
+    port: 443
+    metadata:
+      name: redis
+      useRediSearch: false

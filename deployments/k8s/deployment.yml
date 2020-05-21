@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pandemic-api-ussd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pandemic-api-ussd
+  template:
+    metadata:
+      labels:
+        app: pandemic-api-ussd
+    spec:
+      containers:
+      - name: pandemic-api-ussd
+        image: gidyon/pandemic-api-ussd:v0.13
+        args: ["--config-file", "/app/configs/config.yml"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 443
+          name: https
+          protocol: TCP
+        readinessProbe: # Checks that the container is started
+          httpGet:
+            path: /callbacks/ussd/screening/readyq
+            scheme: HTTP
+            port: 443
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe: # Checks that the container is running
+          httpGet:
+            path: /callbacks/ussd/screening/readyq
+            scheme: HTTP
+            port: 443
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+        volumeMounts:
+          - name: app-tls
+            mountPath: /app/secrets/keys/
+            readOnly: true
+          - name: app-config
+            mountPath: /app/configs/
+            readOnly: true
+          - name: mysql-creds
+            mountPath: /app/secrets/mysql/
+            readOnly: true
+      volumes:
+      - name: app-tls
+        secret:
+          secretName: gateway-tls-v1
+      - name: app-config
+        configMap:
+          name: ussd-insecure
+      - name: mysql-creds
+        secret:
+          secretName: mysql-credentials
+
+---
+apiVersion: "autoscaling/v2beta1"
+kind: "HorizontalPodAutoscaler"
+metadata:
+  name: "pandemic-api-ussd-hpa"
+  labels:
+    app: "pandemic-api-ussd"
+spec:
+  scaleTargetRef:
+    kind: "Deployment"
+    name: "pandemic-api-ussd"
+    apiVersion: "apps/v1"
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: "Resource"
+    resource:
+      name: "cpu"
+      targetAverageUtilization: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ussd
+  labels:
+    app: pandemic-api-ussd
+spec:
+  clusterIP: None
+  selector:
+    app: pandemic-api-ussd
+  ports:
+  - port: 443
+    name: https
+    targetPort: https
+    protocol: TCP
+  - port: 80
+    name: http
+    targetPort: https
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ussd-np
+  labels:
+    app: pandemic-api-ussd
+spec:
+  type: NodePort
+  selector:
+    app: pandemic-api-ussd
+  ports:
+  - port: 443
+    targetPort: https
+    protocol: TCP
+    name: https
+    nodePort: 30860
